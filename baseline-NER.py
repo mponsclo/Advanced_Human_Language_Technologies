@@ -4,9 +4,8 @@ Based on simple heuristic rules'''
 import sys
 import string
 from os import listdir
-
 from xml.dom.minidom import parse
-import nltk
+from nltk.tokenize import word_tokenize
 from evaluator import evaluate
 
 ## ------------- Tokenize Sentence -------------
@@ -16,6 +15,10 @@ def tokenize(s):
     in the original sentence .
     Input - s: string containing the text for one sentence
     Output - Returns a list of tuples (word , offsetFrom , offsetTo )'''
+
+    offset = 0
+    
+
 
 ## ------------- Classify Token -------------
 
