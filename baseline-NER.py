@@ -36,8 +36,8 @@ def tokenize(s):
             
     return token_list
 
-sent = tokenize("Phenothiazines and butyrophenones may reduce or reverse the depressor effect of epinephrine.")
-print(sent) 
+#sent = tokenize("Phenothiazines and butyrophenones may reduce or reverse the depressor effect of epinephrine.")
+#print(sent) 
 
 ## ------------- Classify Token -------------
 def token_type_classifier(word):
@@ -60,10 +60,11 @@ def token_type_classifier(word):
     else: 
         return False, ""
 
-print(token_type_classifier("NSAIDs"))
-print(sent)
-for t in sent[]:
-    print(token_type_classifier(t))
+# print(token_type_classifier("NSAIDs"))
+# print(sent[0])
+#for t in sent:
+#    tokenText = t[0]
+#    print(token_type_classifier(tokenText))
 
 ## ------------- Entity Extractor -------------
 def extract_entities(s):
@@ -86,6 +87,12 @@ def extract_entities(s):
     
     return(output)
 
+#entity = extract_entities(sent)
+#print(entity)
+
+#for f in listdir(datadir):
+#    print(f)
+
 def main(datadir): #, outfile):
     '''datadir - directory with XML files
        outfile - name for the outputfile'''
@@ -107,12 +114,13 @@ def main(datadir): #, outfile):
 
                     # print sentence entities in format requested for evaluation
                     for e in entities:
-                        print(sid + "|" + e["offset"] + "|" + e["text"] + "|" + e["type"]) #, file = outf)
+                        print(sid + "|" + e["offset"] + "|" + e["name"] + "|" + e["type"]) #, file = outf)
+                        
         except:
             pass
         # print performance score
         #evaluator.evaluate("NER", datadir, outfile)
 
-datadir = "/Users/mponsclo/Documents/DataScience/ALHT_Project/train"
-result = main(datadir)
+path = "/Users/mponsclo/Documents/DataScience/ALHT_Project/train"
+result = main(path)
 print(result)
