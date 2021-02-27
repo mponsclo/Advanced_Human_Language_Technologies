@@ -1,1 +1,5 @@
 .DS_Store
+evaluator*
+output.out
+.vscode
+.idea
