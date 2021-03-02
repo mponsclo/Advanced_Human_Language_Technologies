@@ -2,7 +2,7 @@
 Based on simple heuristic rules'''
 
 import string
-import evaluator
+from evaluator import *
 import argparse
 from os import listdir
 from xml.dom.minidom import parse
@@ -136,7 +136,7 @@ def main(datadir, outfile, drug_path, should_look_up=False):
 
         except:
             pass
-    evaluator.evaluate("NER", datadir, outfile)
+    evaluate("NER", datadir, outfile)
 
 
 if __name__ == "__main__":
