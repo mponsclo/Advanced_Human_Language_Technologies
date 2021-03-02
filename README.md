@@ -7,5 +7,3 @@ Repository for the Advanced Human Language Technologies course at UPC
 
 
 include flag `-l` to look up drug names in the drug list file
-
-gjg
