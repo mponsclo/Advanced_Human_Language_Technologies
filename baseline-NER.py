@@ -59,22 +59,23 @@ def token_type_classifier(word, drug_set, should_look_up=False):
     fours = ["arin", "oxin", "toin", "pine", "tine", "bital", "inol", "pram"]
     fives = ["azole", "idine", "orine", "mycin", "hrine", "exate", "amine", "emide"]
 
-    groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", "phenones",
-              "inhib", "coagul", "block", "acids", "agent"]
+    drug_n = ["PCP", "18-MC", "methyl", "phenyl", "tokin", "fluo", "ethyl"]
 
-    if word.isupper() & (len(word) >= 4):
-        return True, "brand"
-    elif should_look_up & (word in drug_set):   
+    groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
+              "phenones", "inhib", "coagul", "block", "acids", "agent", "+", "-"]
+
+    if should_look_up & (word in drug_set): # Priority
         return True, "drug"
+    elif word.isupper() & (len(word) >= 4):
+        return True, "brand"
     elif (word[-3:] in threes) | (word[-4:] in fours) | (word[-5:] in fives):
         return True, "drug"
-    elif (True in [t in word for t in groups]) | ((word[-1:] == "s") & (word[-2].isupper())) | (
-            word.isupper() & (len(word) < 4)):
+    elif (True in [t in word for t in groups]) | ((word[-1:] == "s")):
         return True, "group"
-
+    elif (True in [t in word for t in drug_n]) | (word.isupper() & (len(word) < 4 & len(word) >= 2)): 
+        return True, "drug_n"
     else:
         return False, ""
-
 
 def extract_entities(sentence, drug_set, should_look_up):
     '''
@@ -137,7 +138,6 @@ def main(datadir, outfile, drug_path, should_look_up=False):
         except:
             pass
     evaluate("NER", datadir, outfile)
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
