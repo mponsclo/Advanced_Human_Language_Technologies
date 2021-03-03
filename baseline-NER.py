@@ -86,9 +86,7 @@ def token_type_classifier(word, should_look_up=False):
         return True, "brand"
     elif (word[-3:] in threes) | (word[-4:] in fours) | (word[-5:] in fives):
         return True, "drug"
-    # elif ('-' in word) | (True in [d in word for d in string.digits]):
-    #     return True, "group"
-    elif (True in [t in word for t in groups]) | ((word[-1:] == "s")):
+    elif (True in [t in word for t in groups]) | ((word[-1:] == "s") & len(word) >= 8):
         return True, "group"
     elif (True in [t in word for t in drug_n]) | (word.isupper() & (len(word) < 4 & len(word) >= 2)): 
         return True, "drug_n"
@@ -147,6 +145,11 @@ def main(datadir, outfile, should_look_up=False):
                 stext = s.attributes["text"].value  # get sentence text
                 # tokenize text
                 tokens = tokenize(stext)
+                # create bigrams from consecutive tokens
+                bigrams = filter(lambda t: t[1][1] - t[0][2] == 2, zip(tokens[:-1], tokens[1:]))
+                bigrams = [(f'{t0[0]} {t1[0]}', t0[1], t1[2]) for (t0, t1) in bigrams]
+                tokens.extend(bigrams)
+
                 # extract entities from tokenized sentence text
                 entities = extract_entities(tokens, should_look_up)
 
