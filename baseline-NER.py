@@ -9,6 +9,11 @@ from xml.dom.minidom import parse
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 
+SIMPLE_DB_PATH = './resources/HSDB.txt'
+DRUG_BANK_PATH = './resources/DrugBank.txt'
+
+SimpleDrugDb = set()
+DrugBank = {'drug' : set(), 'brand': set(), 'group': set()}
 
 def tokenize(s):
     '''
@@ -21,7 +26,6 @@ def tokenize(s):
     token_list = []
     tokens = word_tokenize(s)
     stop_words = set(stopwords.words("english"))
-
     for t in tokens:
         if (t in stop_words) | (not t.isalpha()):  # reduce workload
             continue
@@ -29,23 +33,28 @@ def tokenize(s):
             offsetFrom = s.find(t)
             offsetTo = offsetFrom + len(t) - 1
             token_list.append((t, offsetFrom, offsetTo))
-
     return token_list
 
-def read_drug_list_file(resource_path):
+def read_drug_list_files():
     '''
-    Read the HSDB drug database.
-    Input:
-    resource_path - path to HSDB.txt file
-    Output:
-    drugs - set of drugs
+    Read the drug databases.
     '''
-    resource_file = open(resource_path, 'r')
+    resource_file = open(SIMPLE_DB_PATH, 'r')
     lines = resource_file.readlines()
-    drugs = set([d[:-1].lower() for d in lines])
-    return drugs
+    global SimpleDrugDb
+    SimpleDrugDb = set([d[:-1].lower() for d in lines])
 
-def token_type_classifier(word, drug_set, should_look_up=False):
+    resource_file = open(DRUG_BANK_PATH, 'r')
+    lines = resource_file.readlines()
+    global DrugBank
+    split_lines = [(line.split('|')[0].lower(), line.split('|')[1][:-1]) for line in lines]
+
+    for name, n_type in split_lines:
+        DrugBank[n_type].add(name)
+
+
+
+def token_type_classifier(word, should_look_up=False):
     '''
     Classify the tokens.
     Input:
@@ -64,12 +73,21 @@ def token_type_classifier(word, drug_set, should_look_up=False):
     groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
               "phenones", "inhib", "coagul", "block", "acids", "agent", "+", "-"]
 
-    if should_look_up & (word in drug_set): # Priority
-        return True, "drug"
-    elif word.isupper() & (len(word) >= 4):
+    if should_look_up:
+        if (word.lower() in SimpleDrugDb): # Priority
+            return True, "drug"
+        if (word.lower() in DrugBank["drug"]):
+            return True, "drug"
+        if (word.lower() in DrugBank["brand"]):
+            return True, "brand"
+        if (word.lower() in DrugBank["group"]):
+            return True, "group"
+    if word.isupper() & (len(word) >= 4):
         return True, "brand"
     elif (word[-3:] in threes) | (word[-4:] in fours) | (word[-5:] in fives):
         return True, "drug"
+    # elif ('-' in word) | (True in [d in word for d in string.digits]):
+    #     return True, "group"
     elif (True in [t in word for t in groups]) | ((word[-1:] == "s")):
         return True, "group"
     elif (True in [t in word for t in drug_n]) | (word.isupper() & (len(word) < 4 & len(word) >= 2)): 
@@ -77,7 +95,7 @@ def token_type_classifier(word, drug_set, should_look_up=False):
     else:
         return False, ""
 
-def extract_entities(sentence, drug_set, should_look_up):
+def extract_entities(sentence, should_look_up):
     '''
     Given a tokenized sentence , identify which tokens (or groups of consecutive tokens ) are drugs
     Input:
@@ -91,7 +109,7 @@ def extract_entities(sentence, drug_set, should_look_up):
     output = []
     for t in sentence:
         token_text = t[0]  # get the only the text from (text, offset_from, offset_to)
-        (is_brand_drug_group, type_text) = token_type_classifier(token_text, drug_set, should_look_up)
+        (is_brand_drug_group, type_text) = token_type_classifier(token_text, should_look_up)
 
         if is_brand_drug_group:
             offset_from = t[1]
@@ -103,7 +121,7 @@ def extract_entities(sentence, drug_set, should_look_up):
 
     return (output)
 
-def main(datadir, outfile, drug_path, should_look_up=False):
+def main(datadir, outfile, should_look_up=False):
     '''
     Main function.
     Input:
@@ -114,7 +132,9 @@ def main(datadir, outfile, drug_path, should_look_up=False):
     '''
 
     outf = open(outfile, 'w')
-    drugs = read_drug_list_file(drug_path)
+    if (should_look_up):
+        read_drug_list_files()
+
     # process each file in directory
     for f in listdir(datadir):
         try:
@@ -128,7 +148,7 @@ def main(datadir, outfile, drug_path, should_look_up=False):
                 # tokenize text
                 tokens = tokenize(stext)
                 # extract entities from tokenized sentence text
-                entities = extract_entities(tokens, drugs, should_look_up)
+                entities = extract_entities(tokens, should_look_up)
 
                 # print sentence entities in format requested for evaluation
                 for e in entities:
@@ -143,7 +163,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("train_data_path", type=str, help="Path to train data")
     parser.add_argument("output_file_name", type=str, help="Output file name")
-    parser.add_argument("drug_list_path", type=str, help="Path to list of drugs")
     parser.add_argument("-l", nargs='?', const=True, default=False, help="Include looking up in the dictionary")
     args = parser.parse_args()
-    main(args.train_data_path, args.output_file_name, args.drug_list_path, args.l)
+    main(args.train_data_path, args.output_file_name, args.l)
