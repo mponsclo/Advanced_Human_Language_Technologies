@@ -71,7 +71,8 @@ def token_type_classifier(word, should_look_up=False):
     drug_n = ["PCP", "18-MC", "methyl", "phenyl", "tokin", "fluo", "ethyl"]
 
     groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
-              "phenones", "inhib", "coagul", "block", "acids", "agent", "+", "-"]
+              "phenones", "inhib", "coagul", "block", "acids", "agent", "+", "-",
+              "NSAID", "TCA", "SSRI", "MAO"]
 
     if should_look_up:
         if (word.lower() in SimpleDrugDb): # Priority
