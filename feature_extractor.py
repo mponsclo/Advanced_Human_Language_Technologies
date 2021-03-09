@@ -34,6 +34,7 @@ def get_tag(token, gold):
         if start == offsetFrom and end<=offsetTo: return "B-"+Type # First letter of token equals 0 -> Beginning
         elif start >= offsetFrom and end <=offsetTo: return "I-"+Type # Word not in the beginning
         else: return "O"
+    return "O"
 
 def has_numbers(word):
     return any(l.isdigit() for l in word)

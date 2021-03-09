@@ -150,7 +150,7 @@ def main(datadir, outfile, should_look_up=False):
                 bigrams = filter(lambda t: t[1][1] - t[0][2] == 2, zip(tokens[:-1], tokens[1:]))
                 bigrams = [(f'{t0[0]} {t1[0]}', t0[1], t1[2]) for (t0, t1) in bigrams]
                 tokens.extend(bigrams)
-
+    
                 # extract entities from tokenized sentence text
                 entities = extract_entities(tokens, should_look_up)
 
