@@ -31,14 +31,17 @@ def get_tag(token, gold):
     '''
     (form, start, end) = token
     for (offsetFrom, offsetTo, Type) in gold:
-        if start == offsetFrom and end<=offsetTo: return "B-"+Type # First letter of token equals 0 -> Beginning
-        elif start >= offsetFrom and end <=offsetTo: return "I-"+Type # Word not in the beginning
-        else: return "O"
+        if start == offsetFrom and end<=offsetTo:
+            return "B-"+Type # First letter of token equals 0 -> Beginning
+        elif start > offsetFrom and end <=offsetTo:
+            return "I-"+Type # Word not in the beginning
     return "O"
 
 def has_numbers(word):
     return any(l.isdigit() for l in word)
 
+def num_digits(word):
+    return sum(l.isdigit() for l in word)
 
 def extract_features(tokenized_sentence):
     '''
@@ -59,24 +62,51 @@ def extract_features(tokenized_sentence):
         # length, number of digits, rules 
         
         tokenFeatures = [
-            "form = " + t,
-            "formlower = " + t.lower(),
-            "suf3 = " + t[-3:],
-            "suf4 = " + t[-4:],
-            "capitalized = %s " % t.istitle(),
-            "uppercase = %s" % t.isupper(),
-            "digit = %s" % t.isdigit(),
-            "hasNumber = %s" % has_numbers(t),
-            "stopword = %s" % (t in stopwords),
-            "punctuation = %s" % (t in punct),
-            #"posTag = %s" % pos_tag(t, tagset = 'universal')[0][1]
+            "form=" + t,
+            "formlower=" + t.lower(),
+            "suf3=" + t[-3:],
+            "suf4=" + t[-4:],
+            "capitalized=%s " % t.istitle(),
+            "uppercase=%s" % t.isupper(),
+            "digit=%s" % t.isdigit(),
+            "hasNumber=%s" % has_numbers(t),
+            "stopword=%s" % (t in stopwords),
+            "punctuation=%s" % (t in punct),
+            #"length=%s" % len(t),
+            #"posTag=%s" % pos_tag(t, tagset = 'universal')[0][1]
+            #"numDigits=%s" % num_digits(t)
         ]  
         
+  
         features.append(tokenFeatures)
         
-    return features 
+    for i, current_token in enumerate(features):
+        # add previous token
+        if i > 0:
+            prev_token = features[i-1][0][5:]
+            current_token.append("prev=%s" % prev_token)
+            current_token.append("suf3Prev = %s" % prev_token[-3:])
+            current_token.append("suf4Prev = %s" % prev_token[-4:])
+            #current_token.append("prevIsTitle = %s" % prev_token.istitle())
+        else:
+            current_token.append("prev=_BoS_") #beginning of sentence?
+            
+        # add next token
+        if i < len(features)-1:
+            next_token = features[i+1][0][5:]
+            current_token.append("next=%s" % next_token)
+            current_token.append("suf3Next = %s" % next_token[-3:])
+            current_token.append("suf4Next = %s" % next_token[-3:])
+            #current_token.append("NextIsTitle = %s" % next_token.istitle())
+        else:
+            current_token.append("next=_EoS_") # end of sentence
 
-def feature_extractor(datadir):
+        # we could also add the suffixes of the previous/next word
+            
+    return features
+
+def feature_extractor(datadir, resultpath):
+    result_f = open(resultpath, 'w')
     # process each file in directory
     for f in listdir(datadir):
 
@@ -110,13 +140,12 @@ def feature_extractor(datadir):
             for i in range (0, len(tokens)):
                 # see if the token is part of an entity, and which part (B/I)
                 tag = get_tag(tokens[i], gold)
-                print(sid, tokens[i][0], tokens[i][1], tokens[i][2], tag, "\t".join(features[i]), sep='\t')
-
-            # black line to separate sentences
-            print()
+                joined_features = "\t".join(features[i])
+                result_f.write("{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(sid, tokens[i][0], tokens[i][1], tokens[i][2], tag, joined_features))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("data_to_extract_path", type=str, help = "Path to data")
+    parser.add_argument("output_file_name", type=str, help="Output file name")
     args = parser.parse_args()
-    feature_extractor(args.data_to_extract_path)
+    feature_extractor(args.data_to_extract_path, args.output_file_name)
