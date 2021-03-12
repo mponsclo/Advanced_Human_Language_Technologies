@@ -30,7 +30,7 @@ if __name__=="__main__":
     args = parser.parse_args()
 
     # read features from file
-    metadata, X_devel, y_devel = read_feature_file(args.dataset_path)
+    sentence_ids_and_tokens, X_devel, y_devel = read_feature_file(args.dataset_path)
 
     # load trained model to the tagger
     tagger = pycrfsuite.Tagger()
@@ -39,7 +39,7 @@ if __name__=="__main__":
     tags = [tagger.tag(sentence) for sentence in X_devel]
 
     # print the classified tokens
-    for sentence_tags, sentence_data in zip(tags, metadata):
+    for sentence_tags, sentence_data in zip(tags, sentence_ids_and_tokens):
         sid, tokens = sentence_data
         output_entities(sid, tokens, sentence_tags)
 

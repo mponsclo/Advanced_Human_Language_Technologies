@@ -14,7 +14,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # read features from file
-    train_metadata, X_train, y_train = read_feature_file(args.train_file_path)
+    _, X_train, y_train = read_feature_file(args.train_file_path)
 
     # create trainer and configure it
     trainer = pycrfsuite.Trainer(verbose=False)

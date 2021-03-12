@@ -32,14 +32,14 @@ def read_feature_file(filepath):
     Input:
         filepath: Path to the data
     Output:
-        metadata: list of tuples: (sentence_id, list_of_tokens). Each token represents a sentence,
+        tokens_by_sentence: list of tuples: (sentence_id, list_of_tokens). Each tuple represents a sentence,
             where in the list_of_tokens each token is represented by a tuple (word, offset_from, offset_to)
         features: list of lists of features per sentence
-        tags: list of lists of tags (e.g. B-drug, O, I-brand etc.) per sentence
+        tags: list of lists of B-I-O tags per sentence
     '''
     features = []
     tags = []
-    metadata=[]
+    tokens_by_sentence=[]
     
     f = open(filepath, 'r')
     lines = f.readlines()
@@ -50,8 +50,9 @@ def read_feature_file(filepath):
     # process each sentence
     for sid, sentence in sentences:
         s_tokens, s_features, s_tags = parse_sentence_strings(sentence)
+        
+        tokens_by_sentence.append((sid, s_tokens))
         features.append(s_features)
         tags.append(s_tags)
-        metadata.append((sid, s_tokens))
            
-    return metadata, features, tags
+    return tokens_by_sentence, features, tags
