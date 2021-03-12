@@ -1,14 +1,13 @@
 from itertools import groupby
 
-# helper functions
+# helper functions for crf-learner and crf-classifier
 
-
-def parse_sentence_string(sentence):
+def parse_sentence_strings(sentence):
     '''
     Task:
         Given a stringified sentence, parse it and return the data in relevant data structures.
     Input:
-        sentence: list of strings representing the given sentence, in the format standardized for the course, e.g.
+        sentence: list of strings representing the given sentence, where each piece of information is separated by a tab, e.g.
             "DDI-DrugBank.d695.s0	While	0	4	O	form=While	formlower=while	suf3=ile	suf4=hile"
     Output:
         tokens: list of tuples representing tokens: (word, offset_from, offset_to)
@@ -29,7 +28,7 @@ def parse_sentence_string(sentence):
 def read_feature_file(filepath):
     '''
     Task:
-        Given the path to the file containing tokenized sentences (in the format standardized for the course)
+        Given the path to the file containing tokenized sentences, read it and return the necessary data structures
     Input:
         filepath: Path to the data
     Output:
@@ -44,10 +43,13 @@ def read_feature_file(filepath):
     
     f = open(filepath, 'r')
     lines = f.readlines()
+
+    # group the tokens by sentence
     sentences = groupby(lines, lambda l: l.split('\t')[0])
 
+    # process each sentence
     for sid, sentence in sentences:
-        s_tokens, s_features, s_tags = parse_sentence_string(sentence)
+        s_tokens, s_features, s_tags = parse_sentence_strings(sentence)
         features.append(s_features)
         tags.append(s_tags)
         metadata.append((sid, s_tokens))
