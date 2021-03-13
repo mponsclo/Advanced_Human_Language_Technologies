@@ -17,10 +17,32 @@ def output_entities(sid, tokens, tags):
         Prints to stdout the entities in the right format: one line per entity,
         fields separated by ’|’, field order : id, offset, name, type.
     '''
-    for token, tag in zip(tokens, tags):
-        word, offset_from, offset_to = token
-        entity = sid + "|" + offset_from + '-' + offset_to + "|" + word + "|" + tag
-        print(entity)
+    i = 0
+    while i < len(tokens):
+        word, offset_from, offset_to = tokens[i]
+        tag = tags[i]
+        if tag =='O':
+            i += 1
+            continue
+        
+        if tag[0] == 'B':
+            tag_name = tag[2:]
+            # in case the entity is longer than one word, concatenate it
+            j = i + 1
+            while j < len(tokens):
+                word_next, offset_from_next, offset_to_next = tokens[j]
+                tag_next = tags[j]
+                if int(offset_from_next) - int(offset_to) != 2 or tag_next[0] != 'I':
+                    break
+                if tag_next[2:] == tag_name:
+                    word = word + ' ' + word_next
+                    offset_to = offset_to_next
+                j = j+1
+            # print the whole entity
+            entity = sid + "|" + offset_from + '-' + offset_to + "|" + word + "|" + tag_name
+            print(entity)
+        i += 1
+
 
 
 if __name__=="__main__":
@@ -42,6 +64,3 @@ if __name__=="__main__":
     for sentence_tags, sentence_data in zip(tags, sentence_ids_and_tokens):
         sid, tokens = sentence_data
         output_entities(sid, tokens, sentence_tags)
-
-            
-
