@@ -19,11 +19,8 @@ def output_entities(sid, tokens, tags):
     '''
     i = 0
     while i < len(tokens):
-        word, offset_from, offset_to = tokens[i]
+        entity, offset_from, offset_to = tokens[i]
         tag = tags[i]
-        if tag =='O':
-            i += 1
-            continue
         
         if tag[0] == 'B':
             tag_name = tag[2:]
@@ -32,15 +29,15 @@ def output_entities(sid, tokens, tags):
             while j < len(tokens):
                 word_next, offset_from_next, offset_to_next = tokens[j]
                 tag_next = tags[j]
+                j += 1
                 if int(offset_from_next) - int(offset_to) != 2 or tag_next[0] != 'I':
                     break
                 if tag_next[2:] == tag_name:
-                    word = word + ' ' + word_next
+                    entity = entity + ' ' + word_next
                     offset_to = offset_to_next
-                j = j+1
             # print the whole entity
-            entity = sid + "|" + offset_from + '-' + offset_to + "|" + word + "|" + tag_name
-            print(entity)
+            print(sid + "|" + offset_from + '-' + offset_to + "|" + entity + "|" + tag_name)
+
         i += 1
 
 
