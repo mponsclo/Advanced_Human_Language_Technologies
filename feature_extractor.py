@@ -2,10 +2,12 @@
 import argparse
 from os import listdir
 from xml.dom.minidom import parse
-import nltk
+from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
 from nltk import pos_tag
+
+wordnet_lemmatizer = WordNetLemmatizer()
 
 stopwords = set(stopwords.words("english"))
 
@@ -119,15 +121,17 @@ def extract_features(tokenized_sentence, should_look_up = False):
             "formlower=" + t.lower(),
             "suf3=" + t[-3:],
             "suf4=" + t[-4:],
+            "suf5=" + t[-5:],
             "capitalized=%s " % t.istitle(),
             "uppercase=%s" % t.isupper(),
             "digit=%s" % t.isdigit(),
-            "hasNumber=%s" % has_numbers(t),
+            #"hasNumber=%s" % has_numbers(t),
             "stopword=%s" % (t in stopwords),
             "punctuation=%s" % (t in punct),
-            #"length=%s" % len(t),
-            #"posTag=%s" % pos_tag(t, tagset = 'universal')[0][1]
-            #"numDigits=%s" % num_digits(t)
+            "length=%s" % len(t),
+            #"posTag=%s" % pos_tag(t, tagset = 'universal')[0][1],
+            "lemma=%s" % wordnet_lemmatizer.lemmatize(t),
+            "numDigits=%s" % num_digits(t)
         ]
 
         (is_drug, isType) = token_type_classifier(t, should_look_up)
@@ -146,7 +150,10 @@ def extract_features(tokenized_sentence, should_look_up = False):
             current_token.append("prev=%s" % prev_token)
             current_token.append("suf3Prev = %s" % prev_token[-3:])
             current_token.append("suf4Prev = %s" % prev_token[-4:])
-            #current_token.append("prevIsTitle = %s" % prev_token.istitle())
+            current_token.append("prevIsTitle = %s" % prev_token.istitle())
+            current_token.append("prevIsUpper = %s" % prev_token.isupper())
+            current_token.append("PrevIsDigit = %s" % prev_token.isdigit())
+
         else:
             current_token.append("prev=_BoS_") #beginning of sentence?
             
@@ -156,7 +163,9 @@ def extract_features(tokenized_sentence, should_look_up = False):
             current_token.append("next=%s" % next_token)
             current_token.append("suf3Next = %s" % next_token[-3:])
             current_token.append("suf4Next = %s" % next_token[-3:])
-            #current_token.append("NextIsTitle = %s" % next_token.istitle())
+            current_token.append("NextIsTitle = %s" % next_token.istitle())
+            current_token.append("NextIsUpper = %s" % next_token.isupper())
+            current_token.append("NextIsDigit = %s" % next_token.isdigit())
         else:
             current_token.append("next=_EoS_") # end of sentence
 
