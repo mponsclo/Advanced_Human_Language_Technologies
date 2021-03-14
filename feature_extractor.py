@@ -9,6 +9,29 @@ from nltk import pos_tag
 
 stopwords = set(stopwords.words("english"))
 
+SIMPLE_DB_PATH = './resources/HSDB.txt'
+DRUG_BANK_PATH = './resources/DrugBank.txt'
+
+SimpleDrugDb = set()
+DrugBank = {'drug' : set(), 'brand': set(), 'group': set()}
+
+def read_drug_list_files():
+    '''
+    Read the drug databases.
+    '''
+    resource_file = open(SIMPLE_DB_PATH, 'r')
+    lines = resource_file.readlines()
+    global SimpleDrugDb
+    SimpleDrugDb = set([d[:-1].lower() for d in lines])
+
+    resource_file = open(DRUG_BANK_PATH, 'r')
+    lines = resource_file.readlines()
+    global DrugBank
+    split_lines = [(line.split('|')[0].lower(), line.split('|')[1][:-1]) for line in lines]
+
+    for name, n_type in split_lines:
+        DrugBank[n_type].add(name)
+
 def tokenize(s):
     token_list = []
     tokens = word_tokenize(s)
@@ -43,7 +66,34 @@ def has_numbers(word):
 def num_digits(word):
     return sum(l.isdigit() for l in word)
 
-def extract_features(tokenized_sentence):
+def token_type_classifier(word, should_look_up=False):
+    fives = ["azole", "idine", "orine", "mycin", "hrine", "exate", "amine", "emide"]
+
+    drug_n = ["PCP", "18-MC", "methyl", "phenyl", "tokin", "fluo", "ethyl"]
+
+    groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
+              "phenones", "inhib", "coagul", "block", "acids", "agent", "+", "-",
+              "NSAID", "TCA", "SSRI", "MAO"]
+
+    if should_look_up:
+        if (word.lower() in SimpleDrugDb): # Priority
+            return True, "drug"
+        if (word.lower() in DrugBank["drug"]):
+            return True, "drug"
+        if (word.lower() in DrugBank["brand"]):
+            return True, "brand"
+        if (word.lower() in DrugBank["group"]):
+            return True, "group"
+    if (word[-5:] in fives):
+        return True, "drug"
+    elif (True in [t in word for t in groups]):
+        return True, "group"
+    elif (True in [t in word for t in drug_n]) | (word.isupper() & (len(word) < 4 & len(word) >= 2)): 
+        return True, "drug_n"
+    else:
+        return False, ""
+
+def extract_features(tokenized_sentence, should_look_up = False):
     '''
     Input:
         s: A tokenized sentence (list of triples (word, offsetFrom, offsetTo) )
@@ -54,6 +104,9 @@ def extract_features(tokenized_sentence):
     '''
     
     features = []
+
+    if should_look_up:
+        read_drug_list_files()
     
     for i in range(0, len(tokenized_sentence)):
         t = tokenized_sentence[i][0]
@@ -75,9 +128,15 @@ def extract_features(tokenized_sentence):
             #"length=%s" % len(t),
             #"posTag=%s" % pos_tag(t, tagset = 'universal')[0][1]
             #"numDigits=%s" % num_digits(t)
-        ]  
+        ]
+
+        (is_drug, isType) = token_type_classifier(t, should_look_up)
         
-  
+        if is_drug: 
+            tokenFeatures.append("Ruled = %s" %isType) 
+        else: 
+            tokenFeatures.append("Ruled = O")  
+        
         features.append(tokenFeatures)
         
     for i, current_token in enumerate(features):
@@ -105,7 +164,7 @@ def extract_features(tokenized_sentence):
             
     return features
 
-def feature_extractor(datadir, resultpath):
+def feature_extractor(datadir, resultpath, should_look_up = False):
     result_f = open(resultpath, 'w')
     # process each file in directory
     for f in listdir(datadir):
@@ -147,5 +206,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("data_to_extract_path", type=str, help = "Path to data")
     parser.add_argument("output_file_name", type=str, help="Output file name")
+    parser.add_argument("-l", nargs='?', const=True, default=False, help="Include looking up in the dictionary")
     args = parser.parse_args()
-    feature_extractor(args.data_to_extract_path, args.output_file_name)
+    feature_extractor(args.data_to_extract_path, args.output_file_name, args.l)
