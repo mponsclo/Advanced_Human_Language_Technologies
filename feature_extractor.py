@@ -76,7 +76,7 @@ def token_type_classifier(word, should_look_up=False):
               "NSAID", "TCA", "SSRI", "MAO"]
 
     if should_look_up:
-        if (word.lower() in SimpleDrugDb): # Priority
+        if (word.lower() in SimpleDrugDb): 
             return True, "drug"
         if (word.lower() in DrugBank["drug"]):
             return True, "drug"
@@ -193,7 +193,7 @@ def feature_extractor(datadir, resultpath, should_look_up = False):
             tokens = tokenize(stext)
 
             # extract features for each word in the sentence
-            features = extract_features(tokens)
+            features = extract_features(tokens, should_look_up)
 
             # print features in format suitable for the learner/classifier
             for i in range (0, len(tokens)):
