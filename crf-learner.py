@@ -22,9 +22,10 @@ if __name__ == "__main__":
         trainer.append(xseq, yseq)
 
     trainer.set_params({
-        'c1': 1.0,  # coefficient for L1 penalty
-        'c2': 1e-3,  # coefficient for L2 penalty
+        'c1': 0.2,  # coefficient for L1 penalty
+        'c2': 0.001,  # coefficient for L2 penalty
         'max_iterations': 1000,
+        'feature.possible_states': True,
 
         # include transitions that are possible, but not observed
         'feature.possible_transitions': True

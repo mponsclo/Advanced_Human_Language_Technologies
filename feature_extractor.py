@@ -57,9 +57,9 @@ def get_tag(token, gold):
     (form, start, end) = token
     for (offsetFrom, offsetTo, Type) in gold:
         if start == offsetFrom and end<=offsetTo:
-            return "B-"+Type # First letter of token equals 0 -> Beginning
+            return "B-" + Type # First letter of token equals 0 -> Beginning
         elif start > offsetFrom and end <=offsetTo:
-            return "I-"+Type # Word not in the beginning
+            return "I-" + Type # Word not in the beginning
     return "O"
 
 def has_numbers(word):
@@ -69,12 +69,12 @@ def num_digits(word):
     return sum(l.isdigit() for l in word)
 
 def token_type_classifier(word, should_look_up=False):
-    fives = ["azole", "idine", "orine", "mycin", "hrine", "exate", "amine", "emide"]
+    #fives = ["azole", "idine", "orine", "mycin", "hrine", "exate", "amine", "emide"]
 
-    drug_n = ["PCP", "18-MC", "methyl", "phenyl", "tokin", "fluo", "ethyl"]
+    #drug_n = ["PCP", "18-MC", "methyl", "phenyl", "tokin", "fluo", "ethyl"]
 
-    groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
-              "phenones", "inhib", "coagul", "acids", "NSAID", "TCA", "SSRI", "MAO"]
+    #groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
+              #"phenones", "inhib", "coagul", "acids", "NSAID", "TCA", "SSRI", "MAO"]
 
     if should_look_up:
         if (word.lower() in SimpleDrugDb): 
@@ -85,13 +85,15 @@ def token_type_classifier(word, should_look_up=False):
             return True, "brand"
         if (word.lower() in DrugBank["group"]):
             return True, "group"
-    if (word[-5:] in fives):
+        else: 
+            return False, ""
+    #if (word[-5:] in fives):
         return True, "drug"
-    elif (True in [t in word for t in groups]):
+    #elif (True in [t in word for t in groups]):
         return True, "group"
-    elif (True in [t in word for t in drug_n]): 
+    #elif (True in [t in word for t in drug_n]): 
         return True, "drug_n"
-    else:
+    #else:
         return False, ""
 
 def extract_features(tokenized_sentence, should_look_up = False):
@@ -106,9 +108,6 @@ def extract_features(tokenized_sentence, should_look_up = False):
     
     features = []
 
-    if should_look_up:
-        read_drug_list_files()
-    
     for i in range(0, len(tokenized_sentence)):
         t = tokenized_sentence[i][0]
         punct = [".",",",";",":","?","!"]
@@ -121,6 +120,9 @@ def extract_features(tokenized_sentence, should_look_up = False):
             "suf3=" + t[-3:],
             "suf4=" + t[-4:],
             "suf5=" + t[-5:],
+            "prfx3=" + t[:3],
+            "prfx4=" + t[:4],
+            "prfx5=" + t[:5], 
             "capitalized=%s " % t.istitle(),
             "uppercase=%s" % t.isupper(),
             "digit=%s" % t.isdigit(),
@@ -128,20 +130,22 @@ def extract_features(tokenized_sentence, should_look_up = False):
             "stopword=%s" % (t in stopwords),
             "punctuation=%s" % (t in punct),
             "length=%s" % len(t),
-            #"posTag=%s" % pos_tag(t, tagset = 'universal')[0][1],
+            "posTag=%s" % pos_tag(t)[0][1],
             "lemma=%s" % wordnet_lemmatizer.lemmatize(t),
-            "numDigits=%s" % num_digits(t)
+            "numDigits=%s" % num_digits(t), 
+            "containsDash=%s" % ('-' in t)
         ]
-
-        (is_drug, isType) = token_type_classifier(t, should_look_up)
+            
+        features.append(tokenFeatures)
         
+    if should_look_up:
+        read_drug_list_files()
+        (is_drug, isType) = token_type_classifier(t, should_look_up)
         if is_drug: 
             tokenFeatures.append("Ruled = %s" %isType) 
         else: 
-            tokenFeatures.append("Ruled = O")  
-        
-        features.append(tokenFeatures)
-        
+            tokenFeatures.append("Ruled = O") 
+            
     for i, current_token in enumerate(features):
         # add previous token
         if i > 0:
