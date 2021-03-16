@@ -74,8 +74,7 @@ def token_type_classifier(word, should_look_up=False):
     drug_n = ["PCP", "18-MC", "methyl", "phenyl", "tokin", "fluo", "ethyl"]
 
     groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
-              "phenones", "inhib", "coagul", "block", "acids", "agent", "+", "-",
-              "NSAID", "TCA", "SSRI", "MAO"]
+              "phenones", "inhib", "coagul", "acids", "NSAID", "TCA", "SSRI", "MAO"]
 
     if should_look_up:
         if (word.lower() in SimpleDrugDb): 
@@ -90,7 +89,7 @@ def token_type_classifier(word, should_look_up=False):
         return True, "drug"
     elif (True in [t in word for t in groups]):
         return True, "group"
-    elif (True in [t in word for t in drug_n]) | (word.isupper() & (len(word) < 4 & len(word) >= 2)): 
+    elif (True in [t in word for t in drug_n]): 
         return True, "drug_n"
     else:
         return False, ""
@@ -155,7 +154,7 @@ def extract_features(tokenized_sentence, should_look_up = False):
             current_token.append("PrevIsDigit = %s" % prev_token.isdigit())
 
         else:
-            current_token.append("prev=_BoS_") #beginning of sentence?
+            current_token.append("prev=_BoS_") #beginning of sentence
             
         # add next token
         if i < len(features)-1:
@@ -166,6 +165,7 @@ def extract_features(tokenized_sentence, should_look_up = False):
             current_token.append("NextIsTitle = %s" % next_token.istitle())
             current_token.append("NextIsUpper = %s" % next_token.isupper())
             current_token.append("NextIsDigit = %s" % next_token.isdigit())
+
         else:
             current_token.append("next=_EoS_") # end of sentence
 
