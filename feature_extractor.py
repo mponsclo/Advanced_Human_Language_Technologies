@@ -68,35 +68,26 @@ def has_numbers(word):
 def num_digits(word):
     return sum(l.isdigit() for l in word)
 
-def token_type_classifier(word, should_look_up=False):
-    #fives = ["azole", "idine", "orine", "mycin", "hrine", "exate", "amine", "emide"]
+def use_db_resources(word):
+    
+    #drug_n = ["PCP", "18-MC", "ibogaine", "MHD", "endotoxin", "toxin", "NANM", "ginsenosides", 
+    # "NaCMC", "PTX", "coumaphos", "contortrostatin", "resveratrol", "GSLS", "methylglyoxal",
+    # "hydrodolasetron", "neurotensin"]
 
-    #drug_n = ["PCP", "18-MC", "methyl", "phenyl", "tokin", "fluo", "ethyl"]
-
-    #groups = ["depressants", "steroid", "ceptives", "urates", "amines", "azines", 
-              #"phenones", "inhib", "coagul", "acids", "NSAID", "TCA", "SSRI", "MAO"]
-
-    if should_look_up:
-        if (word.lower() in SimpleDrugDb): 
-            return True, "drug"
-        if (word.lower() in DrugBank["drug"]):
-            return True, "drug"
-        if (word.lower() in DrugBank["brand"]):
-            return True, "brand"
-        if (word.lower() in DrugBank["group"]):
-            return True, "group"
-        else: 
-            return False, ""
-    #if (word[-5:] in fives):
+    if (word.lower() in SimpleDrugDb):
         return True, "drug"
-    #elif (True in [t in word for t in groups]):
+    elif (word.lower() in DrugBank["drug"]):
+        return True, "drug"
+    elif (word.lower() in DrugBank["brand"]):
+        return True, "brand"
+    elif (word.lower() in DrugBank["group"]):
         return True, "group"
-    #elif (True in [t in word for t in drug_n]): 
-        return True, "drug_n"
-    #else:
+    #elif (True in [word in word for word in drug_n]):
+        #return True, "drug_n"
+    else:
         return False, ""
 
-def extract_features(tokenized_sentence, should_look_up = False):
+def extract_features(tokenized_sentence, should_look_up=False):
     '''
     Input:
         s: A tokenized sentence (list of triples (word, offsetFrom, offsetTo) )
@@ -107,14 +98,14 @@ def extract_features(tokenized_sentence, should_look_up = False):
     '''
     
     features = []
-
+    
     for i in range(0, len(tokenized_sentence)):
         t = tokenized_sentence[i][0]
         punct = [".",",",";",":","?","!"]
         
         # length, number of digits, rules 
         
-        tokenFeatures = [
+        tokenFeatures =  [
             "form=" + t,
             "formlower=" + t.lower(),
             "suf3=" + t[-3:],
@@ -126,26 +117,25 @@ def extract_features(tokenized_sentence, should_look_up = False):
             "capitalized=%s " % t.istitle(),
             "uppercase=%s" % t.isupper(),
             "digit=%s" % t.isdigit(),
-            #"hasNumber=%s" % has_numbers(t),
             "stopword=%s" % (t in stopwords),
             "punctuation=%s" % (t in punct),
             "length=%s" % len(t),
-            "posTag=%s" % pos_tag(t)[0][1],
+            "posTag=%s" % pos_tag(t)[0][1], # ?
             "lemma=%s" % wordnet_lemmatizer.lemmatize(t),
             "numDigits=%s" % num_digits(t), 
             "containsDash=%s" % ('-' in t)
         ]
-            
+  
         features.append(tokenFeatures)
+    
+        if should_look_up:
+            read_drug_list_files()
+            (is_drug, isType) = use_db_resources(t)
+            if is_drug: 
+                tokenFeatures.append("Ruled = %s" %isType) 
+            else: 
+                tokenFeatures.append("Ruled = O") 
         
-    if should_look_up:
-        read_drug_list_files()
-        (is_drug, isType) = token_type_classifier(t, should_look_up)
-        if is_drug: 
-            tokenFeatures.append("Ruled = %s" %isType) 
-        else: 
-            tokenFeatures.append("Ruled = O") 
-            
     for i, current_token in enumerate(features):
         # add previous token
         if i > 0:
@@ -172,8 +162,6 @@ def extract_features(tokenized_sentence, should_look_up = False):
 
         else:
             current_token.append("next=_EoS_") # end of sentence
-
-        # we could also add the suffixes of the previous/next word
             
     return features
 
