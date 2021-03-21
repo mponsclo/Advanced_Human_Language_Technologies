@@ -1,5 +1,3 @@
 .DS_Store
-evaluator*
-output.out
-.vscode
-.idea
+vscode
+**/*.ipynb_checkpoints/
