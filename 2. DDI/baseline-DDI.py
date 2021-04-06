@@ -10,7 +10,7 @@ from evaluator import evaluate
 
 def get_offsets(word, s):
     start = s.find(word)
-    end = start + len(word) -1
+    end = start + len(word) - 1
     return start, end
 
 def extend_node_with_offsets(node, start, end):
