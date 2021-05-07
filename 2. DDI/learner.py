@@ -1,7 +1,6 @@
 # Import 
 import argparse
 
-from nltk.classify import megam
 
 from utils import read_feature_file
 
