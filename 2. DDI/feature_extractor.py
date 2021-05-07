@@ -68,6 +68,8 @@ def analyze(s):
     return tree
 
 CLUE_VERBS = ['administer', 'enhance', 'interact', 'coadminister', 'increase', 'decrease'] # add more?
+NEGATIVE_WORDS = ['No', 'not', 'neither', 'without', 'lack', 'fail', 'unable', 'abrogate',
+                  'absence', 'prevent','unlikely', 'unchanged', 'rarely']
 
 def find_clue_verbs(path, tree):
     path_nodes = [tree.nodes[x]['lemma'] for x in path]
@@ -77,6 +79,22 @@ def find_clue_verbs(path, tree):
             feats.append('lemmainbetween=%s' % pn)
             
     return feats
+
+def negative_words_path(path, tree):
+    path_nodes = [tree.nodes[x]['word'] for x in path]
+    count = 0
+    for pn in path_nodes:
+        if pn in NEGATIVE_WORDS or pn[-3:] == "n't":
+            count += 1
+    return count
+
+def negative_words_sentence(tree):
+    count = 0
+    for n in tree.nodes.items():
+        word = n[1]['word']
+        if word in NEGATIVE_WORDS:
+            count += 1
+    return count
 
 def traverse_path(path, tree):
     if len(path) == 0:
@@ -122,9 +140,13 @@ def extract_features(tree, entities, e1, e2) :
         Features are binary and vectors are in sparse representation (i.e. only
         active features are listed)
    '''
-    
-    
-        
+    int_verbs = ['interact', 'interaction']
+    mech_verbs = ['metabolism', 'concentration', 'clearance', 'level', 'absorption', 'dose',
+                 'presence', 'interfere']
+    adv_verbs = ['co-administration', 'take', 'coadminister', 'treatment', 'therapy', 'tell']
+    eff_verbs = ['effect', 'alcohol', 'action','use', 'combination', 'inhibitor',
+                'response', 'effect', 'enhance', 'diminish']
+      
     e1_node = find_entity_in_tree(e1, entities, tree)
     e2_node = find_entity_in_tree(e2, entities, tree)
     
@@ -133,14 +155,16 @@ def extract_features(tree, entities, e1, e2) :
     
     h1_lemma = e1_head['lemma'] if e1_node else None
     h2_lemma = e2_head['lemma'] if e2_node else None
-        
+    
     tag_head_e1 = e1_head['tag'] if e1_head else None
     tag_head_e2 = e2_head['tag'] if e2_head else None
     
     nxgraph = tree.nx_graph().to_undirected()
     shortest_path = networkx.shortest_path(nxgraph, e1_node['address'], e2_node['address']) if (e1_node and e2_node) else []
     path = traverse_path(shortest_path, tree)
-    clue_verbs = find_clue_verbs(shortest_path, tree)
+    find_clue_verbs(shortest_path, tree)
+    count_neg_p = negative_words_path(shortest_path, tree)
+    count_neg_s = negative_words_sentence(tree)
 
     
     # --- FEATURES ---
@@ -148,9 +172,59 @@ def extract_features(tree, entities, e1, e2) :
                 'h2_lemma=%s' %h2_lemma,
                 'h1_tag=%s' %tag_head_e1,
                 'h2_tag=%s' %tag_head_e2,
-                'path=%s' % path
-                
-                ] + clue_verbs
+                'path=%s' % path,
+                'neg_words_p=%s' %count_neg_p,  # only 28 with 1, 1 with 2
+                'neg_words_s=%s' %count_neg_s   # 3144 with 1, 270 with 2, 4 with 3 
+                ] + find_clue_verbs(shortest_path, tree)
+    
+    
+    if (e1_head and e2_head):
+        if h1_lemma == h2_lemma:  # should use address? 
+            features.append('under_same=True') # 5609 occurrences
+            if tag_head_e1[0].lower() == 'v':
+                features.append('under_same_verb=True') # 173 occurrences
+            else:
+                features.append('under_same_verb=False')
+        else:
+            features.append('under_same=False')
+            features.append('under_same_verb=False')
+            
+        if h1_lemma == e2_node['lemma']:
+            features.append('1under2=True') # 136 occ
+        else:
+            features.append('1under2=False')
+            
+        if h2_lemma == e1_node['lemma']:
+            features.append('2under1=True') # 1953 occ
+        else:
+            features.append('2under1=False')
+        
+        if h1_lemma in int_verbs or h2_lemma in int_verbs:
+            features.append('intVerbs=True') # 458
+        else:
+            features.append('intVerbs=False')
+            
+        if h1_lemma in mech_verbs or h2_lemma in mech_verbs:
+            features.append('mechVerbs=True') # 1030
+        else:
+            features.append('mechVerbs=False')
+
+        if h1_lemma in adv_verbs or h2_lemma in adv_verbs:
+            features.append('advVerbs=True') # 569
+        else:
+            features.append('advVerbs=False')
+
+        if h1_lemma in eff_verbs or h2_lemma in eff_verbs:
+            features.append('effVerbs=True') # 3480
+        else:
+            features.append('effVerbs=False')
+        
+    else:
+        None
+        
+    # Distance between entities 
+    # Type of entities (drug, brand, group) in the pair
+        
     return features
 
 
@@ -195,7 +269,7 @@ def main(datadir):
                 feats = extract_features(analysis, entities, id_e1, id_e2)
                 
                 # resulting feature vector
-                print(sid, id_e1, id_e2, dditype, "|".join(feats), sep="|") 
+                print(sid, id_e1, id_e2, dditype, "\t".join(feats), sep="\t") 
 
 
 if __name__ == "__main__":
