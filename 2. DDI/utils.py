@@ -3,14 +3,17 @@ from itertools import groupby
 # helper functions for crf-learner and crf-classifier
 
 def parse_string(line):
-    split_data = line[:-1].split('|')
-    print(split_data)
+    split_data = line[:-1].split('\t')
     sentence_id = split_data[0]
     e1_id = split_data[1]
     e2_id = split_data[2]
     interaction = split_data[3]
-    features = split_data[4:]
-    return e1_id, e2_id, features, interaction
+    feats = split_data[4:]
+    features = dict()
+    for f in feats:
+        features[f] = True
+    
+    return sentence_id, e1_id, e2_id, features, interaction
 
 def read_feature_file(filepath):
     '''
@@ -31,7 +34,21 @@ def read_feature_file(filepath):
     data = []
 
     for line in lines:
-        e1, e2, features, interaction = parse_string(line)
-        data.append((features, interaction))
+        if len(line) > 1:
+            sentence_id, e1, e2, features, interaction = parse_string(line)
+            data.append((features, interaction))
+    return data
+
+def read_test_feature_file(filepath):
+    
+    f = open(filepath, 'r')
+    lines = f.readlines()
+
+    data = []
+
+    for line in lines:
+        if len(line) > 1:
+            sentence_id, e1, e2, features, interaction = parse_string(line)
+            data.append((sentence_id, e1, e2, features))
     return data
 
