@@ -22,6 +22,10 @@ def find_entity_in_tree(eid, entities, tree):
         if node['word'] and (node['start'] == start_e1 or node['end'] == end_e1):
             return node
 
+def find_other_entities(eid1, eid2, sid, entities, tree):
+    other_entities = [entity['eid'] for _, entity in entities.items() if entity['sid'] == sid and entity['eid'] not in [eid1, eid2]]
+    return [find_entity_in_tree(eid, entities, tree) for eid in other_entities]
+
 def get_offsets(word, s):
     '''
     Task:
@@ -140,7 +144,7 @@ def find_head(tree, entity):
                 return node
     
     
-def extract_features(tree, entities, e1, e2) :
+def extract_features(tree, entities, e1, e2, sid) :
     '''
     Task:
         Given an analyzed sentence and two target entities , compute a feature
@@ -149,6 +153,7 @@ def extract_features(tree, entities, e1, e2) :
         tree: a DependencyGraph object with all sentence information .
         entities: A list of all entities in the sentence (id and offsets).
         e1, e2: ids of the two entities to be checked for an interaction
+        sid: sentence id
     Output:
         A vector of binary features .
         Features are binary and vectors are in sparse representation (i.e. only
@@ -242,6 +247,12 @@ def extract_features(tree, entities, e1, e2) :
     words_outside_path = find_words_outside_path(shortest_path, tree)
     for word in words_outside_path:
         features.append(f'lemmaoutside={word}')
+
+    other_entities = find_other_entities(e1, e2, sid, entities, tree)
+    for e in other_entities:
+        if e:
+            features.append('otherentity_tag=%s' % e['tag'])
+            features.append('otherentity_lemma=%s' % e['lemma'])
         
     # Distance between entities 
     # Type of entities (drug, brand, group) in the pair
@@ -270,7 +281,7 @@ def main(datadir):
             ents = s.getElementsByTagName("entity")
             for e in ents:
                 eid = e . attributes["id"].value
-                entities[eid] = {"offsets": e.attributes["charOffset"].value.split("-"), "type": e.attributes["type"].value}
+                entities[eid] = {"offsets": e.attributes["charOffset"].value.split("-"), "type": e.attributes["type"].value, 'sid': sid, 'eid': eid}
 
             # analyze sentence if there is at least a pair of entities
             if len(entities) > 1: analysis = analyze(stext)
@@ -287,7 +298,7 @@ def main(datadir):
                 id_e2 = p.attributes["e2"].value
                 
                 # feature extraction
-                feats = extract_features(analysis, entities, id_e1, id_e2)
+                feats = extract_features(analysis, entities, id_e1, id_e2, sid)
                 
                 # resulting feature vector
                 print(sid, id_e1, id_e2, dditype, "\t".join(feats), sep="\t") 
