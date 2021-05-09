@@ -10,13 +10,17 @@ corenlp_parser = CoreNLPDependencyParser(url="http://localhost:9000")
 
 from evaluator import *
 
+def do_indices_overlap(start1, end1, start2, end2):
+    if start1 == start2 and end1==end2:
+        return True
+
 def find_entity_in_tree(eid, entities, tree):
-    start_e1 = entities[eid][0]
-    end_e1 = entities[eid][1]
-    
+    start_e1 = int(entities[eid][0])
+    end_e1 = int(entities[eid][1].split(';')[0])
+
     for n in tree.nodes.items():
         node = n[1]
-        if node['word'] and node['start'] == int(start_e1): # and node['end'] == int(end_e1)):
+        if node['word'] and (node['start'] == start_e1 or node['end'] == end_e1):
             return node
 
 def get_offsets(word, s):
