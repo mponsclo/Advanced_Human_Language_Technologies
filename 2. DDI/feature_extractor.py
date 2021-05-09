@@ -9,8 +9,6 @@ from nltk.parse.corenlp import CoreNLPDependencyParser
 corenlp_parser = CoreNLPDependencyParser(url="http://localhost:9000")
 
 
-from evaluator import *
-
 def do_indices_overlap(start1, end1, start2, end2):
     if start1 == start2 and end1==end2:
         return True
@@ -72,9 +70,9 @@ def analyze(s):
             
     return tree
 
-CLUE_VERBS = ['administer', 'enhance', 'interact', 'coadminister', 'increase', 'decrease'] # add more?
+CLUE_VERBS = ['administer', 'enhance', 'interact', 'coadminister', 'increase', 'decrease', 'take', 'interfere', 'tell', 'diminish', 'fail', 'prevent'] # add more?
 NEGATIVE_WORDS = ['No', 'not', 'neither', 'without', 'lack', 'fail', 'unable', 'abrogate',
-                  'absence', 'prevent','unlikely', 'unchanged', 'rarely']
+                  'absence', 'prevent','unlikely', 'unchanged', 'rarely', 'inhibitor']
 
 def find_clue_verbs(path, tree):
     path_nodes = [tree.nodes[x]['lemma'] for x in path]
