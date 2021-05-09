@@ -2,6 +2,7 @@ from os import listdir
 from xml.dom.minidom import parse
 import networkx
 import argparse
+import string
 # import nltk CoreNLP module (just once)
 from nltk.parse.corenlp import CoreNLPDependencyParser
 # connect to your CoreNLP server (just once)
@@ -102,17 +103,17 @@ def negative_words_sentence(tree):
 
 def traverse_path(path, tree):
     if len(path) == 0:
-        return None
+        return None, None
     path_nodes = [tree.nodes[x] for x in path]
     str_path = ""
     # traverse from e1 up
     current_node = path_nodes[0]
     while (current_node['head'] in path):
-        
         rel = current_node['rel']
         current_node = tree.nodes[current_node['head']]
         str_path += (rel + '<')
-    
+
+    tag_path = str_path + current_node['tag']
     str_path += current_node['lemma']
     # traverse from e2 up
     current_node = path_nodes[-1]
@@ -120,8 +121,19 @@ def traverse_path(path, tree):
         rel = current_node['rel']
         current_node = tree.nodes[current_node['head']]
         str_path += ('>' + rel)
-        
-    return str_path
+        tag_path += ('>' + rel)
+
+    return str_path, tag_path
+
+def find_words_outside_path(path, tree):
+    words = []
+    for node in tree.nodes.items():
+        node = node[1]
+        if node['address'] not in path and node['lemma'] and node['lemma'] not in string.punctuation and not node['lemma'].isdigit():
+            words.append(node['lemma'])
+    return words
+
+
 
 def find_head(tree, entity):
     for n in tree.nodes.items():
@@ -165,7 +177,7 @@ def extract_features(tree, entities, e1, e2) :
     
     nxgraph = tree.nx_graph().to_undirected()
     shortest_path = networkx.shortest_path(nxgraph, e1_node['address'], e2_node['address']) if (e1_node and e2_node) else []
-    path = traverse_path(shortest_path, tree)
+    path_with_word, path_with_tag = traverse_path(shortest_path, tree)
     find_clue_verbs(shortest_path, tree)
     count_neg_p = negative_words_path(shortest_path, tree)
     count_neg_s = negative_words_sentence(tree)
@@ -176,7 +188,8 @@ def extract_features(tree, entities, e1, e2) :
                 'h2_lemma=%s' %h2_lemma,
                 'h1_tag=%s' %tag_head_e1,
                 'h2_tag=%s' %tag_head_e2,
-                'path=%s' % path,
+                'path=%s' % path_with_word,
+                'tagpath=%s' % path_with_tag,
                 'neg_words_p=%s' %count_neg_p,  # only 28 with 1, 1 with 2
                 'neg_words_s=%s' %count_neg_s   # 3144 with 1, 270 with 2, 4 with 3 
                 ] + find_clue_verbs(shortest_path, tree)
@@ -187,44 +200,48 @@ def extract_features(tree, entities, e1, e2) :
             features.append('under_same=True') # 5609 occurrences
             if tag_head_e1[0].lower() == 'v':
                 features.append('under_same_verb=True') # 173 occurrences
-            else:
-                features.append('under_same_verb=False')
-        else:
-            features.append('under_same=False')
-            features.append('under_same_verb=False')
+            # else:
+            #     features.append('under_same_verb=False')
+        # else:
+        #     features.append('under_same=False')
+        #     features.append('under_same_verb=False')
             
         if h1_lemma == e2_node['lemma']:
             features.append('1under2=True') # 136 occ
-        else:
-            features.append('1under2=False')
+        # else:
+        #     features.append('1under2=False')
             
         if h2_lemma == e1_node['lemma']:
             features.append('2under1=True') # 1953 occ
-        else:
-            features.append('2under1=False')
+        # else:
+        #     features.append('2under1=False')
         
         if h1_lemma in int_verbs or h2_lemma in int_verbs:
             features.append('intVerbs=True') # 458
-        else:
-            features.append('intVerbs=False')
+        # else:
+        #     features.append('intVerbs=False')
             
         if h1_lemma in mech_verbs or h2_lemma in mech_verbs:
             features.append('mechVerbs=True') # 1030
-        else:
-            features.append('mechVerbs=False')
+        # else:
+        #     features.append('mechVerbs=False')
 
         if h1_lemma in adv_verbs or h2_lemma in adv_verbs:
             features.append('advVerbs=True') # 569
-        else:
-            features.append('advVerbs=False')
+        # else:
+        #     features.append('advVerbs=False')
 
         if h1_lemma in eff_verbs or h2_lemma in eff_verbs:
             features.append('effVerbs=True') # 3480
-        else:
-            features.append('effVerbs=False')
+        # else:
+        #     features.append('effVerbs=False')
         
     else:
         None
+
+    words_outside_path = find_words_outside_path(shortest_path, tree)
+    for word in words_outside_path:
+        features.append(f'lemmaoutside={word}')
         
     # Distance between entities 
     # Type of entities (drug, brand, group) in the pair
