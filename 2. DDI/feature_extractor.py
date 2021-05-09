@@ -16,8 +16,8 @@ def do_indices_overlap(start1, end1, start2, end2):
         return True
 
 def find_entity_in_tree(eid, entities, tree):
-    start_e1 = int(entities[eid][0])
-    end_e1 = int(entities[eid][1].split(';')[0])
+    start_e1 = int(entities[eid]['offsets'][0])
+    end_e1 = int(entities[eid]['offsets'][1].split(';')[0])
 
     for n in tree.nodes.items():
         node = n[1]
@@ -191,7 +191,9 @@ def extract_features(tree, entities, e1, e2) :
                 'path=%s' % path_with_word,
                 'tagpath=%s' % path_with_tag,
                 'neg_words_p=%s' %count_neg_p,  # only 28 with 1, 1 with 2
-                'neg_words_s=%s' %count_neg_s   # 3144 with 1, 270 with 2, 4 with 3 
+                'neg_words_s=%s' %count_neg_s,  # 3144 with 1, 270 with 2, 4 with 3 
+                'e1_type=%s' % entities[e1]['type'],
+                'e2_type=%s' % entities[e2]['type']
                 ] + find_clue_verbs(shortest_path, tree)
     
     
@@ -270,7 +272,7 @@ def main(datadir):
             ents = s.getElementsByTagName("entity")
             for e in ents:
                 eid = e . attributes["id"].value
-                entities[eid] = e.attributes["charOffset"].value.split("-")
+                entities[eid] = {"offsets": e.attributes["charOffset"].value.split("-"), "type": e.attributes["type"].value}
 
             # analyze sentence if there is at least a pair of entities
             if len(entities) > 1: analysis = analyze(stext)
