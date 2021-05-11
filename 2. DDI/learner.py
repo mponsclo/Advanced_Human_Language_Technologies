@@ -25,5 +25,5 @@ if __name__ == "__main__":
     for sid, e1, e2, feats in test_data:
         prediction = mymodel.classify(feats)
         if prediction != "null":
-            print ( sid , e1 , e2 , prediction , sep ="|")
+            # print ( sid , e1 , e2 , prediction , sep ="|")
             output_f.write(f'{sid}|{e1}|{e2}|{prediction}\n')

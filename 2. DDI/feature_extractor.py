@@ -1,5 +1,6 @@
 from os import listdir
 from xml.dom.minidom import parse
+from nltk import pos_tag
 import networkx
 import argparse
 import string
@@ -23,8 +24,8 @@ def find_entity_in_tree(eid, entities, tree):
             return node
 
 def find_other_entities(eid1, eid2, sid, entities, tree):
-    other_entities = [entity['eid'] for _, entity in entities.items() if entity['sid'] == sid and entity['eid'] not in [eid1, eid2]]
-    return [find_entity_in_tree(eid, entities, tree) for eid in other_entities]
+    other_entities = [(entity['eid'], entity['type']) for _, entity in entities.items() if entity['sid'] == sid and entity['eid'] not in [eid1, eid2]]
+    return [(find_entity_in_tree(eid, entities, tree),e_type) for eid, e_type in other_entities]
 
 def get_offsets(word, s):
     '''
@@ -74,8 +75,8 @@ def analyze(s):
             
     return tree
 
-CLUE_VERBS = ['administer', 'enhance', 'interact', 'coadminister', 'increase', 'decrease', 'take', 'interfere', 'tell', 'diminish', 'fail', 'prevent'] # add more?
-NEGATIVE_WORDS = ['No', 'not', 'neither', 'without', 'lack', 'fail', 'unable', 'abrogate',
+CLUE_VERBS = ['administer', 'enhance', 'interact', 'coadminister', 'increase', 'decrease']
+NEGATIVE_WORDS = ['No', 'not', 'neither', 'without','lack', 'fail', 'unable', 'abrogate',
                   'absence', 'prevent','unlikely', 'unchanged', 'rarely', 'inhibitor']
 
 def find_clue_verbs(path, tree):
@@ -128,12 +129,20 @@ def traverse_path(path, tree):
     return str_path, tag_path
 
 def find_words_outside_path(path, tree):
-    words = []
-    for node in tree.nodes.items():
-        node = node[1]
+    if len(path) < 1:
+        return [], []
+    words_before = []
+    words_after = []
+    nodes_before = [node[1] for node in tree.nodes.items()][:path[0]]
+    nodes_after = [node[1] for node in tree.nodes.items()][path[-1]:]
+
+    for node in nodes_before:
         if node['address'] not in path and node['lemma'] and node['lemma'] not in string.punctuation and not node['lemma'].isdigit():
-            words.append(node['lemma'])
-    return words
+            words_before.append(node['lemma'])
+    for node in nodes_after:
+        if node['address'] not in path and node['lemma'] and node['lemma'] not in string.punctuation and not node['lemma'].isdigit():
+            words_after.append(node['lemma'])
+    return words_before, words_after
 
 
 
@@ -185,18 +194,23 @@ def extract_features(tree, entities, e1, e2, sid) :
     count_neg_p = negative_words_path(shortest_path, tree)
     count_neg_s = negative_words_sentence(tree)
 
+    e1_pos_tag = e1_node['tag'] if e1_node else None
+    e2_pos_tag = e2_node['tag'] if e2_node else None
+
     
     # --- FEATURES ---
     features = ['h1_lemma=%s' %h1_lemma,
                 'h2_lemma=%s' %h2_lemma,
                 'h1_tag=%s' %tag_head_e1,
                 'h2_tag=%s' %tag_head_e2,
-                'path=%s' % path_with_word,
+                # 'path=%s' % path_with_word,
                 'tagpath=%s' % path_with_tag,
-                'neg_words_p=%s' %count_neg_p,  # only 28 with 1, 1 with 2
+                # 'neg_words_p=%s' %count_neg_p,  # only 28 with 1, 1 with 2
                 'neg_words_s=%s' %count_neg_s,  # 3144 with 1, 270 with 2, 4 with 3 
                 'e1_type=%s' % entities[e1]['type'],
-                'e2_type=%s' % entities[e2]['type']
+                'e2_type=%s' % entities[e2]['type'],
+                # 'e1_postag=%s' % e1_pos_tag,
+                # 'e2_postag=%s' % e2_pos_tag
                 ] + find_clue_verbs(shortest_path, tree)
     
     
@@ -205,54 +219,59 @@ def extract_features(tree, entities, e1, e2, sid) :
             features.append('under_same=True') # 5609 occurrences
             if tag_head_e1[0].lower() == 'v':
                 features.append('under_same_verb=True') # 173 occurrences
-            # else:
-            #     features.append('under_same_verb=False')
-        # else:
-        #     features.append('under_same=False')
-        #     features.append('under_same_verb=False')
+            else:
+                features.append('under_same_verb=False')
+        else:
+            features.append('under_same=False')
+            features.append('under_same_verb=False')
             
         if h1_lemma == e2_node['lemma']:
             features.append('1under2=True') # 136 occ
-        # else:
-        #     features.append('1under2=False')
+        else:
+            features.append('1under2=False')
             
         if h2_lemma == e1_node['lemma']:
             features.append('2under1=True') # 1953 occ
-        # else:
-        #     features.append('2under1=False')
+        else:
+            features.append('2under1=False')
         
-        if h1_lemma in int_verbs or h2_lemma in int_verbs:
-            features.append('intVerbs=True') # 458
+        # if h1_lemma in int_verbs or h2_lemma in int_verbs:
+        #     features.append('intVerbs=True') # 458
         # else:
         #     features.append('intVerbs=False')
             
-        if h1_lemma in mech_verbs or h2_lemma in mech_verbs:
-            features.append('mechVerbs=True') # 1030
+        # if h1_lemma in mech_verbs or h2_lemma in mech_verbs:
+        #     features.append('mechVerbs=True') # 1030
         # else:
         #     features.append('mechVerbs=False')
 
-        if h1_lemma in adv_verbs or h2_lemma in adv_verbs:
-            features.append('advVerbs=True') # 569
+        # if h1_lemma in adv_verbs or h2_lemma in adv_verbs:
+        #     features.append('advVerbs=True') # 569
         # else:
         #     features.append('advVerbs=False')
 
-        if h1_lemma in eff_verbs or h2_lemma in eff_verbs:
-            features.append('effVerbs=True') # 3480
+        # if h1_lemma in eff_verbs or h2_lemma in eff_verbs:
+        #     features.append('effVerbs=True') # 3480
         # else:
         #     features.append('effVerbs=False')
         
     else:
         None
 
-    words_outside_path = find_words_outside_path(shortest_path, tree)
-    for word in words_outside_path:
-        features.append(f'lemmaoutside={word}')
+    words_before, words_after = find_words_outside_path(shortest_path, tree)
+    for word in words_before:
+        features.append(f'lemmabefore={word}')
+        features.append(f'tagbefore={pos_tag(word)[0][1]}')
+    for word in words_after:
+        features.append(f'lemmaafter={word}')
+        features.append(f'tagafter={pos_tag(word)[0][1]}')
 
     other_entities = find_other_entities(e1, e2, sid, entities, tree)
-    for e in other_entities:
-        if e:
-            features.append('otherentity_tag=%s' % e['tag'])
-            features.append('otherentity_lemma=%s' % e['lemma'])
+    for e_node, e_type in other_entities:
+        features.append('typeother=%s' % e_type)
+        # if e_node:
+        #     features.append('tagother=%s' % e_node['tag'])
+        #     features.append('lemmaother=%s' % e_node['lemma'])
         
     # Distance between entities 
     # Type of entities (drug, brand, group) in the pair
