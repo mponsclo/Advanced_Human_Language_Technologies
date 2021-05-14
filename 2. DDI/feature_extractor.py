@@ -1,23 +1,31 @@
 from os import listdir
 from xml.dom.minidom import parse
+from nltk import pos_tag
 import networkx
 import argparse
+import string
 # import nltk CoreNLP module (just once)
 from nltk.parse.corenlp import CoreNLPDependencyParser
 # connect to your CoreNLP server (just once)
 corenlp_parser = CoreNLPDependencyParser(url="http://localhost:9000")
 
 
-from evaluator import *
+def do_indices_overlap(start1, end1, start2, end2):
+    if start1 == start2 and end1==end2:
+        return True
 
 def find_entity_in_tree(eid, entities, tree):
-    start_e1 = entities[eid][0]
-    end_e1 = entities[eid][1]
-    
+    start_e1 = int(entities[eid]['offsets'][0])
+    end_e1 = int(entities[eid]['offsets'][1].split(';')[0])
+
     for n in tree.nodes.items():
         node = n[1]
-        if node['word'] and node['start'] == int(start_e1): # and node['end'] == int(end_e1)):
+        if node['word'] and (node['start'] == start_e1 or node['end'] == end_e1):
             return node
+
+def find_other_entities(eid1, eid2, sid, entities, tree):
+    other_entities = [(entity['eid'], entity['type']) for _, entity in entities.items() if entity['sid'] == sid and entity['eid'] not in [eid1, eid2]]
+    return [(find_entity_in_tree(eid, entities, tree),e_type) for eid, e_type in other_entities]
 
 def get_offsets(word, s):
     '''
@@ -67,9 +75,9 @@ def analyze(s):
             
     return tree
 
-CLUE_VERBS = ['administer', 'enhance', 'interact', 'coadminister', 'increase', 'decrease'] # add more?
-NEGATIVE_WORDS = ['No', 'not', 'neither', 'without', 'lack', 'fail', 'unable', 'abrogate',
-                  'absence', 'prevent','unlikely', 'unchanged', 'rarely']
+CLUE_VERBS = ['administer', 'enhance', 'interact', 'coadminister', 'increase', 'decrease']
+NEGATIVE_WORDS = ['No', 'not', 'neither', 'without','lack', 'fail', 'unable', 'abrogate',
+                  'absence', 'prevent','unlikely', 'unchanged', 'rarely', 'inhibitor']
 
 def find_clue_verbs(path, tree):
     path_nodes = [tree.nodes[x]['lemma'] for x in path]
@@ -98,17 +106,17 @@ def negative_words_sentence(tree):
 
 def traverse_path(path, tree):
     if len(path) == 0:
-        return None
+        return None, None
     path_nodes = [tree.nodes[x] for x in path]
     str_path = ""
     # traverse from e1 up
     current_node = path_nodes[0]
     while (current_node['head'] in path):
-        
         rel = current_node['rel']
         current_node = tree.nodes[current_node['head']]
         str_path += (rel + '<')
-    
+
+    tag_path = str_path + current_node['tag']
     str_path += current_node['lemma']
     # traverse from e2 up
     current_node = path_nodes[-1]
@@ -116,8 +124,27 @@ def traverse_path(path, tree):
         rel = current_node['rel']
         current_node = tree.nodes[current_node['head']]
         str_path += ('>' + rel)
-        
-    return str_path
+        tag_path += ('>' + rel)
+
+    return str_path, tag_path
+
+def find_words_outside_path(path, tree):
+    if len(path) < 1:
+        return [], []
+    words_before = []
+    words_after = []
+    nodes_before = [node[1] for node in tree.nodes.items()][:path[0]]
+    nodes_after = [node[1] for node in tree.nodes.items()][path[-1]:]
+
+    for node in nodes_before:
+        if node['address'] not in path and node['lemma'] and node['lemma'] not in string.punctuation and not node['lemma'].isdigit():
+            words_before.append(node['lemma'])
+    for node in nodes_after:
+        if node['address'] not in path and node['lemma'] and node['lemma'] not in string.punctuation and not node['lemma'].isdigit():
+            words_after.append(node['lemma'])
+    return words_before, words_after
+
+
 
 def find_head(tree, entity):
     for n in tree.nodes.items():
@@ -126,7 +153,7 @@ def find_head(tree, entity):
                 return node
     
     
-def extract_features(tree, entities, e1, e2) :
+def extract_features(tree, entities, e1, e2, sid) :
     '''
     Task:
         Given an analyzed sentence and two target entities , compute a feature
@@ -135,6 +162,7 @@ def extract_features(tree, entities, e1, e2) :
         tree: a DependencyGraph object with all sentence information .
         entities: A list of all entities in the sentence (id and offsets).
         e1, e2: ids of the two entities to be checked for an interaction
+        sid: sentence id
     Output:
         A vector of binary features .
         Features are binary and vectors are in sparse representation (i.e. only
@@ -161,10 +189,13 @@ def extract_features(tree, entities, e1, e2) :
     
     nxgraph = tree.nx_graph().to_undirected()
     shortest_path = networkx.shortest_path(nxgraph, e1_node['address'], e2_node['address']) if (e1_node and e2_node) else []
-    path = traverse_path(shortest_path, tree)
+    path_with_word, path_with_tag = traverse_path(shortest_path, tree)
     find_clue_verbs(shortest_path, tree)
     count_neg_p = negative_words_path(shortest_path, tree)
     count_neg_s = negative_words_sentence(tree)
+
+    e1_pos_tag = e1_node['tag'] if e1_node else None
+    e2_pos_tag = e2_node['tag'] if e2_node else None
 
     
     # --- FEATURES ---
@@ -172,9 +203,14 @@ def extract_features(tree, entities, e1, e2) :
                 'h2_lemma=%s' %h2_lemma,
                 'h1_tag=%s' %tag_head_e1,
                 'h2_tag=%s' %tag_head_e2,
-                'path=%s' % path,
-                'neg_words_p=%s' %count_neg_p,  # only 28 with 1, 1 with 2
-                'neg_words_s=%s' %count_neg_s   # 3144 with 1, 270 with 2, 4 with 3 
+                # 'path=%s' % path_with_word,
+                'tagpath=%s' % path_with_tag,
+                # 'neg_words_p=%s' %count_neg_p,  # only 28 with 1, 1 with 2
+                'neg_words_s=%s' %count_neg_s,  # 3144 with 1, 270 with 2, 4 with 3 
+                'e1_type=%s' % entities[e1]['type'],
+                'e2_type=%s' % entities[e2]['type'],
+                # 'e1_postag=%s' % e1_pos_tag,
+                # 'e2_postag=%s' % e2_pos_tag
                 ] + find_clue_verbs(shortest_path, tree)
     
     
@@ -199,28 +235,43 @@ def extract_features(tree, entities, e1, e2) :
         else:
             features.append('2under1=False')
         
-        if h1_lemma in int_verbs or h2_lemma in int_verbs:
-            features.append('intVerbs=True') # 458
-        else:
-            features.append('intVerbs=False')
+        # if h1_lemma in int_verbs or h2_lemma in int_verbs:
+        #     features.append('intVerbs=True') # 458
+        # else:
+        #     features.append('intVerbs=False')
             
-        if h1_lemma in mech_verbs or h2_lemma in mech_verbs:
-            features.append('mechVerbs=True') # 1030
-        else:
-            features.append('mechVerbs=False')
+        # if h1_lemma in mech_verbs or h2_lemma in mech_verbs:
+        #     features.append('mechVerbs=True') # 1030
+        # else:
+        #     features.append('mechVerbs=False')
 
-        if h1_lemma in adv_verbs or h2_lemma in adv_verbs:
-            features.append('advVerbs=True') # 569
-        else:
-            features.append('advVerbs=False')
+        # if h1_lemma in adv_verbs or h2_lemma in adv_verbs:
+        #     features.append('advVerbs=True') # 569
+        # else:
+        #     features.append('advVerbs=False')
 
-        if h1_lemma in eff_verbs or h2_lemma in eff_verbs:
-            features.append('effVerbs=True') # 3480
-        else:
-            features.append('effVerbs=False')
+        # if h1_lemma in eff_verbs or h2_lemma in eff_verbs:
+        #     features.append('effVerbs=True') # 3480
+        # else:
+        #     features.append('effVerbs=False')
         
     else:
         None
+
+    words_before, words_after = find_words_outside_path(shortest_path, tree)
+    for word in words_before:
+        features.append(f'lemmabefore={word}')
+        features.append(f'tagbefore={pos_tag(word)[0][1]}')
+    for word in words_after:
+        features.append(f'lemmaafter={word}')
+        features.append(f'tagafter={pos_tag(word)[0][1]}')
+
+    other_entities = find_other_entities(e1, e2, sid, entities, tree)
+    for e_node, e_type in other_entities:
+        features.append('typeother=%s' % e_type)
+        # if e_node:
+        #     features.append('tagother=%s' % e_node['tag'])
+        #     features.append('lemmaother=%s' % e_node['lemma'])
         
     # Distance between entities 
     # Type of entities (drug, brand, group) in the pair
@@ -249,7 +300,7 @@ def main(datadir):
             ents = s.getElementsByTagName("entity")
             for e in ents:
                 eid = e . attributes["id"].value
-                entities[eid] = e.attributes["charOffset"].value.split("-")
+                entities[eid] = {"offsets": e.attributes["charOffset"].value.split("-"), "type": e.attributes["type"].value, 'sid': sid, 'eid': eid}
 
             # analyze sentence if there is at least a pair of entities
             if len(entities) > 1: analysis = analyze(stext)
@@ -266,7 +317,7 @@ def main(datadir):
                 id_e2 = p.attributes["e2"].value
                 
                 # feature extraction
-                feats = extract_features(analysis, entities, id_e1, id_e2)
+                feats = extract_features(analysis, entities, id_e1, id_e2, sid)
                 
                 # resulting feature vector
                 print(sid, id_e1, id_e2, dditype, "\t".join(feats), sep="\t") 
